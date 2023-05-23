@@ -34,8 +34,13 @@ def test_left_normalization(mps):
     mps.tensors[-1] = mps.tensors[-1].reshape(right_old_shape)
 
 def main():
-    hamiltonian_tensor = hb.heisenberg_two_spin_tensor(np.ones(3))
+    id2 = np.eye(2, dtype="complex")
+    heisenberg2 = hb.heisenberg_two_spin_hamiltonian(np.ones(3))
+    three_spin_hamiltonian = np.kron(heisenberg2, id2) + np.kron(id2, heisenberg2) 
+    hamiltonian_tensor = three_spin_hamiltonian.reshape((2,) * 6)
     hamiltonian_mpo = po.tensor_to_mpo(hamiltonian_tensor)
+    for tensor in hamiltonian_mpo.tensors:
+        print(tensor.shape)
 
 if __name__ == "__main__":
     main()
