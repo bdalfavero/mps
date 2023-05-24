@@ -10,6 +10,7 @@ from copy import copy, deepcopy
 from ncon import ncon
 import heisenberg as hb
 
+
 def test_left_normalization(mps):
     # Test that the state is left-normalized.
 
@@ -33,6 +34,7 @@ def test_left_normalization(mps):
     mps.tensors[0] = mps.tensors[0].reshape(left_old_shape)
     mps.tensors[-1] = mps.tensors[-1].reshape(right_old_shape)
 
+
 def main():
     id2 = np.eye(2, dtype="complex")
     heisenberg2 = hb.heisenberg_two_spin_hamiltonian(np.ones(3))
@@ -41,6 +43,7 @@ def main():
     hamiltonian_mpo = po.tensor_to_mpo(hamiltonian_tensor)
     for tensor in hamiltonian_mpo.tensors:
         print(tensor.shape)
+
 
 if __name__ == "__main__":
     main()
