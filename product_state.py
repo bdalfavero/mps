@@ -9,7 +9,20 @@ from ncon import ncon
 class ProductState:
 
     def __init__(self):
-        self.tensors = []
+        """
+        The MPS consists of a set of tensors forming a 
+        train. The left_tensors are left-canonical,
+        and the right_tensors are right-canonical.
+        They are connected by a middle_tensor of rank 2
+        (a matrix). See Schollwoeck sec. 4.4 for details on canoncial forms.
+        The lists start out empty, since they should be filled by another
+        function that converts vectors to MPS's or makes a random
+        MPS.
+        """
+        
+        self.left_tensors = []
+        self.middle_tensor = None
+        self.right_tensors = []
         self.size = 0
 
     def to_tensor(self):
@@ -29,6 +42,35 @@ class ProductState:
         for i in range(1, len(self.tensors)):
             new_tensor = np.tensordot(new_tensor, self.tensors[i], axes=(-1, 0))
         return new_tensor
+    
+
+    def get_tensor_list(self):
+        """
+        ProductState.get_tensor_list()
+
+        Get the list of tensors for the MPS. Since the MPS can be
+        in a mixed canoncial form, the middle_tensor might need
+        to be contracted with either the rightmost left-canoncial
+        tensor, or the leftmost right-canoncial tensor. This function
+        chooses to contract the middle tensor with the leftmost
+        right-canoncial tensor, if the state is not purely left-
+        or right-canoncial.
+
+        Returns:
+        tensor_list: [np.array], tensors of the MPS.
+        """
+
+        if (len(self.right_tensors) == 0):
+            return self.left_tensors
+        elif (len(self.left_tensors) == 0):
+            return self.right_tensors
+        else:
+            # The MPS is mixed-canonical. Contract the middle_tensor
+            # with the first element of right_tensors and return
+            # the concatenation of the two lists.
+            right_tensors = self.right_tensors
+            right_tensors[0] = np.tensordot(self.middle_tensor, right_tensors[0], axes=(1, 0))
+            return self.left_tensors + right_tensors
 
 
 def tensor_to_mps(tensor):
@@ -75,7 +117,7 @@ def tensor_to_mps(tensor):
     matrices[-1] = matrices[-1].reshape((matrices[-1].size // old_shape[-1], old_shape[-1]))
     # Create an MPS object from the matrices.
     mps = ProductState()
-    mps.tensors = matrices
+    mps.left_tensors = matrices
     mps.size = len(matrices)
     return mps
 
@@ -96,7 +138,7 @@ def mps_inner_product(mps1, mps2):
     # NCON requires two lists: a list of tensors to contract, and a list of contractions.
     # We will contract the conjugate of the tensors for the first state, and the normal tensors
     # for the second.
-    tensor_list = [t.conj() for t in mps1.tensors] + mps2.tensors
+    tensor_list = [t.conj() for t in mps1.get_tensor_list()] + mps2.get_tensor_list()
     # Make a list of lists to store the contraction indices.
     v = []
     for t in tensor_list:
@@ -104,9 +146,9 @@ def mps_inner_product(mps1, mps2):
     # We also need to contract in the order given on Schollwoeck Fig. 21
     # Iterate through the pairs of tensors, assigning contraction numbers as we go.
     contraction_ix = 0 # Label for next contraction, incrememnted after each assignment.
-    for ix in range(len(mps1.tensors)):
+    for ix in range(len(mps1.get_tensor_list())):
         upper_ix = ix # Index within tensor_list for current tensor from mps1
-        lower_ix = ix + len(mps2.tensors) # Index within tensor_list for current tensor from mps2
+        lower_ix = ix + len(mps2.get_tensor_list()) # Index within tensor_list for current tensor from mps2
         if ix == 0:
             # Assign contractions for the leftmost tensors.
             # Contract the vertical legs on the upper and lower tensors,
@@ -121,7 +163,7 @@ def mps_inner_product(mps1, mps2):
             v[lower_ix][1] = contraction_ix
             v[lower_ix + 1][0] = contraction_ix
             contraction_ix += 1
-        elif ix == len(mps1.tensors) - 1:
+        elif ix == len(mps1.get_tensor_list()) - 1:
             # Assign contractions for the rightmost tensors.
             # Contract the right leg of the last 3-leg tensor with the horizontal legs
             # on the rightmost 2-leg tensor. Do that for upper and lower. Then contract

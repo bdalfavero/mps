@@ -13,7 +13,7 @@ import heisenberg as hb
 def main():
     psi_mps = random_mps((2,) * 3)
     print("MPS shapes:")
-    for tensor in psi_mps.tensors:
+    for tensor in psi_mps.get_tensor_list():
         print(tensor.shape)
     inner_product = ps.mps_inner_product(psi_mps, psi_mps)
     print("MPS self inner product: ", inner_product)
